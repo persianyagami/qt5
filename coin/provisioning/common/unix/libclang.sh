@@ -47,18 +47,23 @@ source "${BASH_SOURCE%/*}/SetEnvVar.sh"
 # shellcheck source=./DownloadURL.sh
 source "${BASH_SOURCE%/*}/DownloadURL.sh"
 
-libclang_version=10.0
+libclang_version=12.0
 
 if uname -a |grep -q Darwin; then
     version=$libclang_version
     url="https://download.qt.io/development_releases/prebuilt/libclang/qt/libclang-release_${version//\./}-based-mac.7z"
     url_cached="http://ci-files01-hki.intra.qt.io/input/libclang/qt/libclang-release_${version//\./}-based-mac.7z"
-    sha1="6e019c428511e74c5d46d0ddca79d8e804b67f8a"
+    sha1="bb9223450c1c36ee37d8c91e876dba82db117a7a"
+elif test -f /etc/redhat-release && cat /etc/redhat-release | grep "Red Hat" | grep -v "8" ; then
+    version=$libclang_version
+    url="https://download.qt.io/development_releases/prebuilt/libclang/qt/libclang-release_${version//\./}-based-linux-CentOS8.3-gcc9.2-x86_64.7z"
+    url_cached="http://ci-files01-hki.intra.qt.io/input/libclang/qt/libclang-release_${version//\./}-based-linux-CentOS8.3-gcc9.2-x86_64.7z"
+    sha1="d02e4dd30fe3f810c3a0cdcbed5870dec56ed91b"
 else
     version=$libclang_version
-    url="https://download.qt.io/development_releases/prebuilt/libclang/qt/libclang-release_${version//\./}-based-linux-Ubuntu18.04-gcc9.2-x86_64.7z"
-    url_cached="http://ci-files01-hki.intra.qt.io/input/libclang/qt/libclang-release_${version//\./}-based-linux-Ubuntu18.04-gcc9.2-x86_64.7z"
-    sha1="08f352d411e4b47c2a259c3b120d7cb2db01e41d"
+    url="https://download.qt.io/development_releases/prebuilt/libclang/qt/libclang-release_${version//\./}-based-linux-Ubuntu20.04-gcc9.3-x86_64.7z"
+    url_cached="http://ci-files01-hki.intra.qt.io/input/libclang/qt/libclang-release_${version//\./}-based-linux-Ubuntu20.04-gcc9.3-x86_64.7z"
+    sha1="81b3e640befa23b5cdebd59e206dc79e4de20ba3"
 fi
 
 zip="/tmp/libclang.7z"

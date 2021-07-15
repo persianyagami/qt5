@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION ${__qt_minimum_cmake_version})
 include("${__qt6_qtbase_src_path}/cmake/QtAutoDetect.cmake")
 
 project(Qt
-    VERSION 6.0.0
+    VERSION "${QT_REPO_MODULE_VERSION}"
     DESCRIPTION "Qt Libraries"
     HOMEPAGE_URL "https://qt.io/"
     LANGUAGES CXX C ASM
@@ -38,37 +38,57 @@ endif()
 set(QT_SUPERBUILD TRUE)
 
 # Get submodule list if not already defined
-if (NOT BUILD_SUBMODULES)
-    qt_internal_find_modules(BUILD_SUBMODULES)
+if(NOT QT_BUILD_SUBMODULES)
+    if(DEFINED ENV{QT_BUILD_SUBMODULES})
+        set(QT_BUILD_SUBMODULES "$ENV{QT_BUILD_SUBMODULES}")
+    else()
+        qt_internal_find_modules(QT_BUILD_SUBMODULES)
+    endif()
 endif()
+set(QT_BUILD_SUBMODULES "${QT_BUILD_SUBMODULES}" CACHE STRING "Submodules to build")
 
 set(qt_module_dependency_map_prefix "__qt_module_dependencies_")
-qt_internal_sort_module_dependencies("${BUILD_SUBMODULES}" BUILD_SUBMODULES
+qt_internal_sort_module_dependencies("${QT_BUILD_SUBMODULES}" QT_BUILD_SUBMODULES
                                      "${qt_module_dependency_map_prefix}")
 
-foreach(module IN LISTS BUILD_SUBMODULES)
+foreach(module IN LISTS QT_BUILD_SUBMODULES)
     # Check for unmet dependencies
     if(NOT DEFINED BUILD_${module} OR BUILD_${module})
-        message(NOTICE "Check dependencies of '${module}'")
+        message(NOTICE "Checking dependencies of '${module}'")
+        get_property(required_deps GLOBAL PROPERTY QT_REQUIRED_DEPS_FOR_${module})
         foreach(dep IN LISTS "${qt_module_dependency_map_prefix}${module}")
             if (dep STREQUAL "qtbase")
                 # Always available skip
                 continue()
             endif()
-            if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${dep}/CMakeLists.txt")
-                message(FATAL_ERROR "Module '${module}' depends on '${dep}', but ${dep}'s \
-                CMakeLists.txt couldn't be found.\nNote: Use '-skip ${module}' to exclude it \
-                from build.\n")
+
+            set(required FALSE)
+            if(dep IN_LIST required_deps)
+                set(required TRUE)
             endif()
-            if(DEFINED BUILD_${dep} AND NOT BUILD_${dep})
-                message(FATAL_ERROR "Module '${module}' depends on '${dep}', but '${dep}' \
-                will not be built.\nNote: Use '-skip ${module}' to exclude it from build.\n")
+
+            set(error_reason "")
+            if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${dep}/CMakeLists.txt")
+                set(error_reason "${dep}'s CMakeLists.txt couldn't be found")
+            elseif(DEFINED BUILD_${dep} AND NOT BUILD_${dep})
+                set(error_reason "building '${dep}' was explicitly disabled")
+            endif()
+
+            if(NOT error_reason STREQUAL "")
+                if(required)
+                    message(FATAL_ERROR "Module '${module}' depends on '${dep}', "
+                        "but ${error_reason}.\n"
+                        "Note: Use '-skip ${module}' to exclude it from the build.")
+                else()
+                    message(NOTICE "Skipping optional dependency '${dep}' of '${module}', "
+                        "because ${error_reason}.")
+                endif()
             endif()
         endforeach()
     endif()
 endforeach()
 
-foreach(module IN LISTS BUILD_SUBMODULES)
+foreach(module IN LISTS QT_BUILD_SUBMODULES)
     message(NOTICE "Configuring '${module}'")
     ecm_optional_add_subdirectory("${module}")
 

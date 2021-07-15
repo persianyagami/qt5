@@ -72,11 +72,14 @@ Options:
         Only initialize the specified subset of modules given as the
         argument. Specified modules must already exist in .gitmodules. The
         string "all" results in cloning all known modules. The strings
-        "essential", "addon", "preview", "deprecated", "obsolete", and
-        "ignore" refer to classes of modules; "default" maps to
-        "essential,addon,preview,deprecated", which corresponds with the
-        set of maintained modules and is also the default set. Module
-        names may be prefixed with a dash to exclude them from a bigger
+        "essential", "addon", "preview", "deprecated", "obsolete",
+        "additionalLibrary", and "ignore" refer to classes of modules
+        identified by "status=" lines in the .gitmodules file.
+        You can use "default" in the subset as a short-hand for
+        "essential,addon,preview,deprecated", which corresponds to the set of
+        maintained modules included in standard Qt releases; this is also the
+        default module subset when this option is not given. Entries
+        may be prefixed with a dash to exclude them from a bigger
         set, e.g. "all,-ignore".
 
     --no-update
@@ -294,8 +297,15 @@ use constant {
     STS_ESSENTIAL => 2,
     STS_ADDON => 3,
     STS_DEPRECATED => 4,
-    STS_OBSOLETE => 5
+    STS_OBSOLETE => 5,
+    STS_ADDITIONAL => 6
 };
+
+sub has_url_scheme
+{
+    my ($url) = @_;
+    return $url =~ "^[a-z][a-z0-9+\-.]*://";
+}
 
 sub git_clone_all_submodules
 {
@@ -315,8 +325,9 @@ sub git_clone_all_submodules
             $subbranches{$1} = $3;
         } elsif ($2 eq "url") {
             my ($mod, $base) = ($1, $3);
-            next if ($base !~ /^\.\.\//);
-            $base = $my_repo_base.'/'.$base;
+            if (!has_url_scheme($base)) {
+                $base = $my_repo_base.'/'.$base;
+            }
             while ($base =~ s,(?!\.\./)[^/]+/\.\./,,g) {}
             $subbases{$mod} = $base;
         } elsif ($2 eq "update") {
@@ -332,6 +343,8 @@ sub git_clone_all_submodules
                 $subinits{$1} = STS_DEPRECATED;
             } elsif ($3 eq "obsolete") {
                 $subinits{$1} = STS_OBSOLETE;
+            } elsif ($3 eq "additionalLibrary") {
+                $subinits{$1} = STS_ADDITIONAL;
             } elsif ($3 eq "ignore") {
                 delete $subinits{$1};
             } else {
@@ -351,6 +364,8 @@ sub git_clone_all_submodules
             @what = grep { ($subinits{$_} || 0) eq STS_ESSENTIAL } keys %subbases;
         } elsif ($mod eq "addon") {
             @what = grep { ($subinits{$_} || 0) eq STS_ADDON } keys %subbases;
+        } elsif ($mod eq "additionalLibrary") {
+            @what = grep { ($subinits{$_} || 0) eq STS_ADDITIONAL } keys %subbases;
         } elsif ($mod eq "preview") {
             @what = grep { ($subinits{$_} || 0) eq STS_PREVIEW } keys %subbases;
         } elsif ($mod eq "deprecated") {
@@ -511,9 +526,13 @@ sub git_clone_one_submodule
 
     my $do_clone = (! -e "$submodule/.git");
 
-    my $url = $self->{'base-url'}.$repo_basename;
+    my $url = $repo_basename;
+    if (!has_url_scheme($url)) {
+        $url = $self->{'base-url'}.$url;
+    }
+
     my $mirror;
-    if ($mirror_url && ($do_clone || $self->{fetch})) {
+    if (!has_url_scheme($repo_basename) && $mirror_url && ($do_clone || $self->{fetch})) {
         $mirror = $mirror_url.$repo_basename;
     }
 
@@ -563,7 +582,9 @@ sub git_clone_one_submodule
         $self->exe('git', 'config', 'commit.template', $template);
     }
 
-    $self->git_add_remotes($repo_basename);
+    if (!has_url_scheme($repo_basename)) {
+        $self->git_add_remotes($repo_basename);
+    }
 
     if ($self->{'detach-alternates'}) {
         $self->exe('git', 'repack', '-a');
@@ -640,12 +661,13 @@ sub run
     chomp(my $url = `git config remote.origin.url`);
     die("Have no origin remote.\n") if (!$url);
     $url =~ s,\.git$,,;
-    $url =~ s/qt5$//;
+    $url =~ s/((?:tqtc-)?qt5)$//;
+    my $qtrepo = $1 || 'qt5';
     $self->{'base-url'} = $url;
 
-    $self->git_clone_all_submodules('qt5', $self->{branch}, $self->{alternates}, @{$self->{'module-subset'}});
+    $self->git_clone_all_submodules($qtrepo, $self->{branch}, $self->{alternates}, @{$self->{'module-subset'}});
 
-    $self->git_add_remotes('qt5');
+    $self->git_add_remotes($qtrepo);
 
     $self->git_install_hooks;
 

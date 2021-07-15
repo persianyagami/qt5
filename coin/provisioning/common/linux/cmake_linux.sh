@@ -42,13 +42,13 @@ source "${BASH_SOURCE%/*}/../unix/InstallFromCompressedFileFromURL.sh"
 # shellcheck source=../unix/SetEnvVar.sh
 source "${BASH_SOURCE%/*}/../unix/SetEnvVar.sh"
 
-majorminorversion="3.19"
-version="3.19.0"
-PrimaryUrl="http://ci-files01-hki.intra.qt.io/input/cmake/cmake-$version-Linux-x86_64.tar.gz"
-AltUrl="https://cmake.org/files/v$majorminorversion/cmake-$version-Linux-x86_64.tar.gz"
-SHA1="e2da8449626d9fd8ed1c0eb4babaab6d535f7e72"
+majorminorversion="3.20"
+version="3.20.5"
+PrimaryUrl="http://ci-files01-hki.intra.qt.io/input/cmake/cmake-$version-linux-x86_64.tar.gz"
+AltUrl="https://cmake.org/files/v$majorminorversion/cmake-$version-linux-x86_64.tar.gz"
+SHA1="55dcec47c2496d4e88cffc900c3990f9f3b14c03"
 targetFolder="/opt/cmake-$version"
-appPrefix="cmake-$version-Linux-x86_64"
+appPrefix="cmake-$version-linux-x86_64"
 
 InstallFromCompressedFileFromURL "$PrimaryUrl" "$AltUrl" "$SHA1" "$targetFolder" "$appPrefix"
 
